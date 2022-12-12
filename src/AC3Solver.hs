@@ -172,19 +172,45 @@ val4 = Vals [v4, v5]
 board1 :: Cells
 board1 = Cells (M.fromList [(1, val1), (2, val2), (3, val3), (4, val4)])
 
-arc1 :: Arc
-arc1 = Arc (1, 2)
+-- arc1 :: Arc
+-- arc1 = Arc (1, 2)
 
-arc2 :: Arc
-arc2 = Arc (2, 3)
+-- arc2 :: Arc
+-- arc2 = Arc (2, 1)
 
-arc3 :: Arc
-arc3 = Arc (3, 4)
+-- arc3 :: Arc
+-- arc3 = Arc (1, 3)
+
+-- arc4 = Arc (1,4)
+
+-- arc5 = Arc(3,1)
+
+-- arc6 = Arc(2,3)
+
+-- arc7 = Arc(3,2)
+
+-- arc8 =
+
+arcs :: [Arc]
+arcs =
+  [ Arc (1, 2),
+    Arc (1, 3),
+    Arc (1, 4),
+    Arc (2, 1),
+    Arc (3, 1),
+    Arc (4, 1),
+    Arc (2, 3),
+    Arc (2, 4),
+    Arc (3, 2),
+    Arc (4, 2),
+    Arc (3, 4),
+    Arc (4, 3)
+  ]
 
 testApplyAC3 :: Test
 testApplyAC3 =
   "AC3"
-    ~: applyAC3 board1 [arc1, arc2, arc3] ~?= Cells (M.fromList [(1, Vals [v1]), (2, Vals [v2]), (3, Vals [v3]), (4, Vals [v4])])
+    ~: applyAC3 board1 arcs ~?= Cells (M.fromList [(1, Vals [v1]), (2, Vals [v2]), (3, Vals [v3]), (4, Vals [v4])])
 
 -- >>> runTestTT testApplyAC3
 -- Counts {cases = 1, tried = 1, errors = 0, failures = 0}
@@ -201,9 +227,18 @@ instantiate :: Vals -> [Vals]
 instantiate (Vals []) = []
 instantiate (Vals (x : xs)) = Vals [x] : instantiate (Vals xs)
 
+-- >>> instantiate val1
+-- [Vals {vals = [Var {var = 1}]},Vals {vals = [Var {var = 2}]}]
+
 instantiate2Helper :: [Vals] -> Cells -> Int -> [Cells]
 instantiate2Helper [] (Cells c) i = []
 instantiate2Helper (v : vs) (Cells c) i = Cells (M.insert i v c) : instantiate2Helper vs (Cells c) i
+
+instval1 :: [Vals]
+instval1 = instantiate val1
+
+-- >>> instantiate2Helper instval1 board1 1
+-- [Cells {cells = fromList [(1,Vals {vals = [Var {var = 1}]}),(2,Vals {vals = [Var {var = 2},Var {var = 3}]}),(3,Vals {vals = [Var {var = 3},Var {var = 4}]}),(4,Vals {vals = [Var {var = 4},Var {var = 5}]})]},Cells {cells = fromList [(1,Vals {vals = [Var {var = 2}]}),(2,Vals {vals = [Var {var = 2},Var {var = 3}]}),(3,Vals {vals = [Var {var = 3},Var {var = 4}]}),(4,Vals {vals = [Var {var = 4},Var {var = 5}]})]}]
 
 instantiate2 :: Cells -> Int -> [Cells]
 instantiate2 (Cells c) i =
@@ -213,29 +248,47 @@ instantiate2 (Cells c) i =
       let vals = instantiate v
        in instantiate2Helper vals (Cells c) i
 
+-- >>> instantiate2 board1 1
+-- [Cells {cells = fromList [(1,Vals {vals = [Var {var = 1}]}),(2,Vals {vals = [Var {var = 2},Var {var = 3}]}),(3,Vals {vals = [Var {var = 3},Var {var = 4}]}),(4,Vals {vals = [Var {var = 4},Var {var = 5}]})]},Cells {cells = fromList [(1,Vals {vals = [Var {var = 2}]}),(2,Vals {vals = [Var {var = 2},Var {var = 3}]}),(3,Vals {vals = [Var {var = 3},Var {var = 4}]}),(4,Vals {vals = [Var {var = 4},Var {var = 5}]})]}]
+
 instantiate3 :: Cells -> [Int] -> [Cells]
 instantiate3 (Cells c) [] = []
 instantiate3 (Cells c) (i : is) =
   instantiate2 (Cells c) i ++ instantiate3 (Cells c) is
 
--- applyAC3All :: [Cells] -> [Arc] -> Maybe Cells
+-- >>> instantiate3 board1 [1,2]
+-- [Cells {cells = fromList [(1,Vals {vals = [Var {var = 1}]}),(2,Vals {vals = [Var {var = 2},Var {var = 3}]}),(3,Vals {vals = [Var {var = 3},Var {var = 4}]}),(4,Vals {vals = [Var {var = 4},Var {var = 5}]})]},
+-- Cells {cells = fromList [(1,Vals {vals = [Var {var = 2}]}),(2,Vals {vals = [Var {var = 2},Var {var = 3}]}),(3,Vals {vals = [Var {var = 3},Var {var = 4}]}),(4,Vals {vals = [Var {var = 4},Var {var = 5}]})]},
+-- Cells {cells = fromList [(1,Vals {vals = [Var {var = 1},Var {var = 2}]}),(2,Vals {vals = [Var {var = 2}]}),(3,Vals {vals = [Var {var = 3},Var {var = 4}]}),(4,Vals {vals = [Var {var = 4},Var {var = 5}]})]},
+-- Cells {cells = fromList [(1,Vals {vals = [Var {var = 1},Var {var = 2}]}),(2,Vals {vals = [Var {var = 3}]}),(3,Vals {vals = [Var {var = 3},Var {var = 4}]}),(4,Vals {vals = [Var {var = 4},Var {var = 5}]})]}]
 
--- applyAC3All [] arcs = Nothing
--- applyAC3All (c : cs) arcs =
--- let sol = applyAC3Guess c arcs
---  in case sol of
---       Nothing -> applyAC3All cs arcs
---       Just s -> Just s
+inst3b1 :: [Cells]
+inst3b1 = instantiate3 board1 [1, 2]
 
--- applyAC3Guess :: Cells -> [Arc] -> Maybe Cells
--- applyAC3Guess (Cells cells) arcs =
---   let sol = applyAC3 (Cells cells) arcs
---    in if solved sol then Just (Cells cells)
---         else
---           ( let ks = M.keys cells
---              in let cs = instantiate3 (Cells cells) ks
---                  in applyAC3All cs arcs
---           )
+applyAC3All :: [Cells] -> [Arc] -> Maybe Cells
+applyAC3All [] arcs = Nothing
+applyAC3All (c : cs) arcs =
+  let sol = applyAC3 c arcs
+   in case solved sol of
+        True -> Just sol
+        False -> applyAC3All cs arcs
+
+-- >>> applyAC3All inst3b1 arcs
+-- Just (Cells {cells = fromList [(1,Vals {vals = [Var {var = 2}]}),(2,Vals {vals = [Var {var = 3}]}),(3,Vals {vals = [Var {var = 4}]}),(4,Vals {vals = [Var {var = 5}]})]})
+
+applyAC3Guess :: Cells -> [Arc] -> Maybe Cells
+applyAC3Guess (Cells cells) arcs =
+  let sol = applyAC3 (Cells cells) arcs
+   in if solved sol
+        then Just (Cells cells)
+        else
+          ( let ks = M.keys cells
+             in let cs = instantiate3 (Cells cells) ks
+                 in applyAC3All cs arcs
+          )
+
+-- >>> applyAC3Guess board1 arcs
+-- Just (Cells {cells = fromList [(1,Vals {vals = [Var {var = 2}]}),(2,Vals {vals = [Var {var = 3}]}),(3,Vals {vals = [Var {var = 4}]}),(4,Vals {vals = [Var {var = 5}]})]})
 
 val4_changed :: Vals
 val4_changed = Vals [v1, v2, v3, v4]
@@ -243,7 +296,10 @@ val4_changed = Vals [v1, v2, v3, v4]
 board2 :: Cells
 board2 = Cells (M.fromList [(1, val1), (2, val2), (3, val3), (4, val4_changed)])
 
--- testApplyAC3Guess :: Test
--- testApplyAC3Guess =
---   "AC3Guess"
---     ~: applyAC3Guess board1 [arc1, arc2, arc3] ~?= Just (Cells (M.fromList [(1, Vals [v1]), (2, Vals [v2]), (3, Vals [v3]), (4, Vals [v4])]))
+testApplyAC3Guess :: Test
+testApplyAC3Guess =
+  "AC3Guess"
+    ~: applyAC3Guess board1 arcs ~?= Just (Cells (M.fromList [(1, Vals [v2]), (2, Vals [v3]), (3, Vals [v4]), (4, Vals [v5])]))
+
+-- >>> runTestTT testApplyAC3Guess
+-- Counts {cases = 1, tried = 1, errors = 0, failures = 0}
