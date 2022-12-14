@@ -4,12 +4,13 @@ version:        0.1.0.0
 description:    Please see the README on GitHub at <https://github.com/githubuser/project-cis5520#readme>
 homepage:       https://github.com/githubuser/project-cis5520#readme
 bug-reports:    https://github.com/githubuser/project-cis5520/issues
-author:         Author name here
-maintainer:     example@example.com
-copyright:      2022 Author name here
+author:         Peter Spencer Lindenthal
+maintainer:     pslindyfam@gmail.com
+copyright:      2022 Peter Spencer Lindenthal
 license:        BSD-3-Clause
 license-file:   LICENSE
 build-type:     Simple
+
 extra-source-files:
     README.md
     ChangeLog.md

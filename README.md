@@ -1,31 +1,14 @@
-# project-cis5520
-
-This is an "Empty project" for Haskell. It is configured in the same way as
-the lecture demo and homework assignments for CIS 5520, but contains no
-code. Feel free to use this project for experimentation!
-
-If you want to change the name of this project, look for all occurrences of
-`project-cis5520` in the `project-cis5520.cabal` file and in the `hie.yaml` 
-file. (And change the name of the cabal file to match your new name!)
-
 ## Module organization
 
-Haskell packages typically divide their source code into three separate places:
-  - The bulk of your code should be developed as a reusable library in 
-    modules in the `src` directory. We've created [Lib.hs](src/Lib.hs) 
-    for you to get started. You can add additional modules here.
-  
-  - The entry point for your executable is in [Main.hs](app/Main.hs). 
-  
-  - All of your test cases should be in [the test directory](test/Spec.hs).
+AC3Solver.hs - Baseline AC3 Solver with test cases for small compact AC3 algorithms
+
+Soduku.hs - Expansion of the AC3 Solver algorithm to a larger more understandable problem
 
 ## Building, running, and testing
 
-This project compiles with `stack build`. 
-You can run the main executable with `stack run`.
-You can run the tests with `stack test`. 
+Test cases at the end of each function
 
-Finally, you can start a REPL with `stack ghci`.
+Larger end-to-end testing for the 3x3 Soduku boards at the end of Soduku.hs
 
 ## Importing additional libraries
 
