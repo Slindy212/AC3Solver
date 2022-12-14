@@ -3,9 +3,11 @@ module Soduku where
 import AC3Solver
   ( Arc (Arc),
     Cells (..),
-    Vals (Vals),
+    Vals (Vals, vals),
     Var (Var, var),
     applyAC3,
+    applyAC3Guess,
+    instantiate3,
     neighbors,
     v1,
     v2,
@@ -84,10 +86,6 @@ testCreateCells =
 -- >>> runTestTT testCreateCells
 -- Counts {cases = 1, tried = 1, errors = 0, failures = 0}
 
---Read a txt file representing a board into a completed Cells
--- createCellsFromTXT :: String -> Cells
--- createCellsFromTXT = undefined
-
 -- testCreateCellsFromTXT :: Test
 -- testCreateCellsFromTXT =
 --   "From Text File"
@@ -103,8 +101,8 @@ createArcsRow cell1 cell2 size = Arc (cell1, cell2) : createArcsRow cell1 (cell2
 -- [Arc {arc = (16,13)},Arc {arc = (16,14)},Arc {arc = (16,15)}]
 
 createArcsCol :: Int -> Int -> Int -> [Arc]
-createArcsCol cell1 cell2 size | cell2 > (size * size) = []
-createArcsCol cell1 cell2 size | cell2 == (0) = createArcsCol cell1 (cell2 + size) size
+createArcsCol cell1 cell2 size | cell2 > size * size = []
+createArcsCol cell1 cell2 size | cell2 == 0 = createArcsCol cell1 (cell2 + size) size
 createArcsCol cell1 cell2 size | cell1 == cell2 = createArcsCol cell1 (cell2 + size) size
 createArcsCol cell1 cell2 size = Arc (cell1, cell2) : createArcsCol cell1 (cell2 + size) size
 
@@ -124,8 +122,8 @@ getSudokuBox j size =
 
 createArcsBox :: Int -> Int -> Int -> Int -> [Arc]
 createArcsBox cell1 cell2 box size | cell2 >= (size * size) = []
-createArcsBox cell1 cell2 box size | cell1 == ((cell2 `div` size) * (size * size) + (box `div` size) * (size) * (size * size) + (cell2 `mod` size + 1) + ((box `mod` size) * size)) = createArcsBox cell1 (cell2 + 1) box size
-createArcsBox cell1 cell2 box size = Arc (cell1, ((cell2 `div` size) * (size * size) + (box `div` size) * (size) * (size * size) + (cell2 `mod` size + 1) + ((box `mod` size) * size))) : createArcsBox cell1 (cell2 + 1) box size
+createArcsBox cell1 cell2 box size | cell1 == ((cell2 `div` size) * (size * size) + (box `div` size) * size * (size * size) + (cell2 `mod` size + 1) + ((box `mod` size) * size)) = createArcsBox cell1 (cell2 + 1) box size
+createArcsBox cell1 cell2 box size = Arc (cell1, (cell2 `div` size) * (size * size) + (box `div` size) * size * (size * size) + (cell2 `mod` size + 1) + ((box `mod` size) * size)) : createArcsBox cell1 (cell2 + 1) box size
 
 --(cell2 `div` size)*(size*size)
 --(box `div` size)*(size)*(size*size)
@@ -140,7 +138,7 @@ createArcsHelper :: Int -> Int -> [Arc]
 createArcsHelper cell size | cell > (size * size) * (size * size) = []
 createArcsHelper cell size =
   let sizesqr = size * size
-   in S.toList (S.fromList ((createArcsRow cell (((cell - 1) `div` sizesqr) * sizesqr + 1) sizesqr) ++ (createArcsCol cell ((cell `mod` sizesqr)) sizesqr) ++ (createArcsBox cell 0 (getSudokuBox cell size) size)))
+   in S.toList (S.fromList (createArcsRow cell (((cell - 1) `div` sizesqr) * sizesqr + 1) sizesqr ++ createArcsCol cell (cell `mod` sizesqr) sizesqr ++ createArcsBox cell 0 (getSudokuBox cell size) size))
 
 -- >>> (createArcsHelper 1 2)
 -- [Arc {arc = (1,2)},Arc {arc = (1,3)},Arc {arc = (1,4)},Arc {arc = (1,5)},Arc {arc = (1,6)},Arc {arc = (1,9)},Arc {arc = (1,13)}]
@@ -280,7 +278,7 @@ arcs2x2 =
 testCreateArcs :: Test
 testCreateArcs =
   "Create 2x2 Arcs"
-    ~: (createArcs 2) ~?= (arcs2x2)
+    ~: createArcs 2 ~?= arcs2x2
 
 -- >>> runTestTT testCreateArcs
 -- Counts {cases = 1, tried = 1, errors = 0, failures = 0}
@@ -328,10 +326,10 @@ chunk i (Just xs) = take i xs : chunk i (Just (reverse (take (length xs - i) (re
 
 test :: [[Int]]
 test =
-  [ [2, 0, 0, 0],
+  [ [0, 0, 4, 0],
     [0, 0, 0, 0],
     [0, 0, 0, 0],
-    [0, 0, 0, 0]
+    [0, 2, 0, 3]
   ]
 
 test1 :: Vals
@@ -355,25 +353,122 @@ n = neighbors 13 arcs2x2
 -- >>> boardToPuzzle sol
 -- Just [2,3,4,1,1,4,3,2,3,1,2,4,4,2,1,3]
 
-solveSodukuPuzzle :: [[Int]] -> Maybe [[Int]]
-solveSodukuPuzzle is =
-  let board = createCells 1 fullVals is
-   in let sol = applyAC3 board arcs2x2
-       in let puzzle = boardToPuzzle sol
-           in case puzzle of
-                Nothing -> Nothing
-                Just x -> Just (chunk 4 (Just x))
+fullValsFromInt :: Int -> Vals
+fullValsFromInt 0 = Vals []
+fullValsFromInt i = Vals (Var i : vals (fullValsFromInt (i - 1)))
 
--- >>> solveSodukuPuzzle arr1
--- Just [[2,3,4,1],[1,4,3,2],[3,1,2,4],[4,2,1,3]]
+-- >>> fullValsFromInt 9
+-- Vals {vals = [Var {var = 9},Var {var = 8},Var {var = 7},Var {var = 6},Var {var = 5},Var {var = 4},Var {var = 3},Var {var = 2},Var {var = 1}]}
 
-solveSodukuPuzzleSTR :: String -> Maybe [[Int]]
-solveSodukuPuzzleSTR = undefined
+solveSodukuPuzzleSub :: [[Int]] -> Maybe Cells
+solveSodukuPuzzleSub is =
+  let board = createCells 1 (fullValsFromInt (3 * 3)) is
+   in applyAC3Guess board (createArcs 3)
+
+-- >>> solveSodukuPuzzleSub med1
+-- Just (Cells {cells = fromList [(1,Vals {vals = [Var {var = 8}]}),(2,Vals {vals = [Var {var = 2}]}),(3,Vals {vals = [Var {var = 1}]}),(4,Vals {vals = [Var {var = 5}]}),(5,Vals {vals = [Var {var = 6}]}),(6,Vals {vals = [Var {var = 4}]}),(7,Vals {vals = [Var {var = 3}]}),(8,Vals {vals = [Var {var = 9}]}),(9,Vals {vals = [Var {var = 7}]}),(10,Vals {vals = [Var {var = 5}]}),(11,Vals {vals = [Var {var = 9}]}),(12,Vals {vals = [Var {var = 3}]}),(13,Vals {vals = [Var {var = 8}]}),(14,Vals {vals = [Var {var = 1}]}),(15,Vals {vals = [Var {var = 7}]}),(16,Vals {vals = [Var {var = 4}]}),(17,Vals {vals = [Var {var = 6}]}),(18,Vals {vals = [Var {var = 2}]}),(19,Vals {vals = [Var {var = 4}]}),(20,Vals {vals = [Var {var = 6}]}),(21,Vals {vals = [Var {var = 7}]}),(22,Vals {vals = [Var {var = 9}]}),(23,Vals {vals = [Var {var = 3}]}),(24,Vals {vals = [Var {var = 2}]}),(25,Vals {vals = [Var {var = 8}]}),(26,Vals {vals = [Var {var = 1}]}),(27,Vals {vals = [Var {var = 5}]}),(28,Vals {vals = [Var {var = 7}]}),(29,Vals {vals = [Var {var = 5}]}),(30,Vals {vals = [Var {var = 8}]}),(31,Vals {vals = [Var {var = 2}]}),(32,Vals {vals = [Var {var = 4}]}),(33,Vals {vals = [Var {var = 1}]}),(34,Vals {vals = [Var {var = 6}]}),(35,Vals {vals = [Var {var = 3}]}),(36,Vals {vals = [Var {var = 9}]}),(37,Vals {vals = [Var {var = 1}]}),(38,Vals {vals = [Var {var = 3}]}),(39,Vals {vals = [Var {var = 6}]}),(40,Vals {vals = [Var {var = 7}]}),(41,Vals {vals = [Var {var = 9}]}),(42,Vals {vals = [Var {var = 5}]}),(43,Vals {vals = [Var {var = 2}]}),(44,Vals {vals = [Var {var = 8}]}),(45,Vals {vals = [Var {var = 4}]}),(46,Vals {vals = [Var {var = 2}]}),(47,Vals {vals = [Var {var = 4}]}),(48,Vals {vals = [Var {var = 9}]}),(49,Vals {vals = [Var {var = 6}]}),(50,Vals {vals = [Var {var = 8}]}),(51,Vals {vals = [Var {var = 3}]}),(52,Vals {vals = [Var {var = 7}]}),(53,Vals {vals = [Var {var = 5}]}),(54,Vals {vals = [Var {var = 1}]}),(55,Vals {vals = [Var {var = 6}]}),(56,Vals {vals = [Var {var = 8}]}),(57,Vals {vals = [Var {var = 5}]}),(58,Vals {vals = [Var {var = 4}]}),(59,Vals {vals = [Var {var = 2}]}),(60,Vals {vals = [Var {var = 9}]}),(61,Vals {vals = [Var {var = 1}]}),(62,Vals {vals = [Var {var = 7}]}),(63,Vals {vals = [Var {var = 3}]}),(64,Vals {vals = [Var {var = 3}]}),(65,Vals {vals = [Var {var = 7}]}),(66,Vals {vals = [Var {var = 4}]}),(67,Vals {vals = [Var {var = 1}]}),(68,Vals {vals = [Var {var = 5}]}),(69,Vals {vals = [Var {var = 6}]}),(70,Vals {vals = [Var {var = 9}]}),(71,Vals {vals = [Var {var = 2}]}),(72,Vals {vals = [Var {var = 8}]}),(73,Vals {vals = [Var {var = 9}]}),(74,Vals {vals = [Var {var = 1}]}),(75,Vals {vals = [Var {var = 2}]}),(76,Vals {vals = [Var {var = 3}]}),(77,Vals {vals = [Var {var = 7}]}),(78,Vals {vals = [Var {var = 8}]}),(79,Vals {vals = [Var {var = 5}]}),(80,Vals {vals = [Var {var = 4}]}),(81,Vals {vals = [Var {var = 6}]})]})
+
+solveSodukuPuzzle :: [[Int]] -> Int -> Maybe [[Int]]
+solveSodukuPuzzle is size =
+  let board = createCells 1 (fullValsFromInt (size * size)) is
+   in let sol = applyAC3Guess board (createArcs size)
+       in case sol of
+            Nothing -> Nothing
+            Just s ->
+              let puzzle = boardToPuzzle s
+               in case puzzle of
+                    Nothing -> Nothing
+                    Just x -> Just (chunk (size * size) (Just x))
+
+-- >>> solveSodukuPuzzle hard1 3
+
+med1 :: [[Int]]
+med1 =
+  [ [8, 2, 1, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 8, 0, 0, 0, 6, 0],
+    [0, 6, 0, 9, 3, 0, 0, 0, 5],
+    [0, 0, 8, 2, 0, 1, 6, 0, 0],
+    [0, 0, 0, 7, 0, 0, 2, 8, 4],
+    [2, 4, 0, 6, 0, 3, 7, 0, 0],
+    [6, 0, 5, 0, 0, 0, 1, 0, 3],
+    [0, 7, 0, 0, 5, 0, 0, 0, 0],
+    [9, 1, 2, 0, 0, 0, 0, 0, 6]
+  ]
+
+med2 :: [[Int]]
+med2 =
+  [ [0, 0, 0, 0, 8, 3, 4, 0, 0],
+    [3, 0, 0, 0, 0, 4, 8, 2, 1],
+    [7, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 9, 4, 0, 1, 0, 8, 3],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [4, 6, 0, 5, 0, 7, 1, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 7],
+    [1, 2, 5, 3, 0, 0, 0, 0, 9],
+    [0, 0, 7, 2, 4, 0, 0, 0, 0]
+  ]
+
+hard1 :: [[Int]]
+hard1 =
+  [ [0, 9, 0, 7, 0, 0, 8, 6, 0],
+    [0, 3, 1, 0, 0, 5, 0, 2, 0],
+    [8, 0, 6, 0, 0, 0, 0, 0, 0],
+    [0, 0, 7, 0, 5, 0, 0, 0, 6],
+    [0, 0, 0, 3, 0, 7, 0, 0, 0],
+    [5, 0, 0, 0, 1, 0, 7, 0, 0],
+    [0, 0, 0, 0, 0, 0, 1, 0, 9],
+    [0, 2, 0, 6, 0, 0, 3, 5, 0],
+    [0, 5, 4, 0, 0, 8, 0, 7, 0]
+  ]
+
+solvedMed1 :: [[Int]]
+solvedMed1 =
+  [ [8, 2, 1, 5, 6, 4, 3, 9, 7],
+    [5, 9, 3, 8, 1, 7, 4, 6, 2],
+    [4, 6, 7, 9, 3, 2, 8, 1, 5],
+    [7, 5, 8, 2, 4, 1, 6, 3, 9],
+    [1, 3, 6, 7, 9, 5, 2, 8, 4],
+    [2, 4, 9, 6, 8, 3, 7, 5, 1],
+    [6, 8, 5, 4, 2, 9, 1, 7, 3],
+    [3, 7, 4, 1, 5, 6, 9, 2, 8],
+    [9, 1, 2, 3, 7, 8, 5, 4, 6]
+  ]
+
+solvedMed2 :: [[Int]]
+solvedMed2 =
+  [ [9, 1, 2, 6, 8, 3, 4, 7, 5],
+    [3, 5, 6, 7, 9, 4, 8, 2, 1],
+    [7, 8, 4, 1, 5, 2, 9, 3, 6],
+    [2, 7, 9, 4, 6, 1, 5, 8, 3],
+    [5, 3, 1, 8, 2, 9, 7, 6, 4],
+    [4, 6, 8, 5, 3, 7, 1, 9, 2],
+    [8, 4, 3, 9, 1, 6, 2, 5, 7],
+    [1, 2, 5, 3, 7, 8, 6, 4, 9],
+    [6, 9, 7, 2, 4, 5, 3, 1, 8]
+  ]
+
+solvedHard1 :: [[Int]]
+solvedHard1 =
+  [ [2, 9, 5, 7, 4, 3, 8, 6, 1],
+    [4, 3, 1, 8, 6, 5, 9, 2, 7],
+    [8, 7, 6, 1, 9, 2, 5, 4, 3],
+    [3, 8, 7, 4, 5, 9, 2, 1, 6],
+    [6, 1, 2, 3, 8, 7, 4, 9, 5],
+    [5, 4, 9, 2, 1, 6, 7, 3, 8],
+    [7, 6, 3, 5, 2, 4, 1, 8, 9],
+    [9, 2, 8, 6, 7, 1, 3, 5, 4],
+    [1, 5, 4, 9, 3, 8, 6, 7, 2]
+  ]
 
 testSolver :: Test
 testSolver =
   "Test Solvers"
-    ~: [ solveSodukuPuzzle arr1 ~?= Just solvedArr1,
-         solveSodukuPuzzleSTR "Sodoku" ~?= Just solvedArr1,
-         solveSodukuPuzzle emptyArr1 ~?= Nothing
+    ~: [ solveSodukuPuzzle arr1 2 ~?= Just solvedArr1,
+         solveSodukuPuzzle emptyArr1 2 ~?= Nothing,
+         solveSodukuPuzzle med1 3 ~?= Just solvedMed1,
+         solveSodukuPuzzle med2 3 ~?= Just solvedMed2,
+         solveSodukuPuzzle hard1 3 ~?= Just solvedHard1
        ]
+
+-- >>> runTestTT testSolver
+-- Counts {cases = 5, tried = 5, errors = 0, failures = 0}

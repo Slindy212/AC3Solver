@@ -269,18 +269,15 @@ applyAC3All :: [Cells] -> [Arc] -> Maybe Cells
 applyAC3All [] arcs = Nothing
 applyAC3All (c : cs) arcs =
   let sol = applyAC3 c arcs
-   in case solved sol of
-        True -> Just sol
-        False -> applyAC3All cs arcs
+   in if solved sol then Just sol else applyAC3All cs arcs
 
 -- >>> applyAC3All inst3b1 arcs
--- Just (Cells {cells = fromList [(1,Vals {vals = [Var {var = 2}]}),(2,Vals {vals = [Var {var = 3}]}),(3,Vals {vals = [Var {var = 4}]}),(4,Vals {vals = [Var {var = 5}]})]})
 
 applyAC3Guess :: Cells -> [Arc] -> Maybe Cells
 applyAC3Guess (Cells cells) arcs =
   let sol = applyAC3 (Cells cells) arcs
    in if solved sol
-        then Just (Cells cells)
+        then Just sol
         else
           ( let ks = M.keys cells
              in let cs = instantiate3 (Cells cells) ks
